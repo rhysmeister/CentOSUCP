@@ -1,0 +1,52 @@
+---
+
+  - hosts: all
+    become: yes
+
+    tasks:
+
+      - name: Install epel
+        yum:
+          name: epel-release
+
+      - name: Add docker group
+        group:
+          name: docker
+          state: present
+
+      - name: Install pip
+        yum:
+          name: python-pip
+
+      - name: Add docker repository
+        command: yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+        args:
+          creates: /etc/yum.repos.d/docker-ce.repo
+
+      - name: Install docker-ce
+        yum:
+          name: docker-ce
+          enablerepo: docker-ce-stable
+
+      - name: Install docker python lib
+        pip:
+          name: docker
+
+      - name: Ensure docker service is running
+        service:
+          name: docker
+          state: started
+          enabled: yes
+
+      - name: Pull Docker UCP image
+        docker_image:
+          name: docker/ucp:3.2.1
+          source: pull
+
+      - name: Run ucp install process
+        shell: /usr/bin/docker container run --rm -it --name ucp -v /var/run/docker.sock:/var/run/docker.sock docker/ucp:3.2.1 install --host-address 192.168.5.134 --admin-username=$UCP_USER --admin-password=$UCP_PASS --pod-cidr 10.0.0.0/16 && touch ucp.success
+        environment:
+          UCP_USER: admin
+          UCP_PASS: adminadmin
+        args:
+          creates: ucp.success
